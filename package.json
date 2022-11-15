@@ -80,7 +80,6 @@
     "zustand": "^4.1.4"
   },
   "peerDependencies": {
-    "jotai": "*",
-    "zustand": "*"
+    "jotai": "*"
   }
 }
