@@ -1,8 +1,8 @@
 import React, { StrictMode } from 'react'
 import { act, fireEvent, render } from '@testing-library/react'
 import { useAtom } from 'jotai'
-import { atomWithStore } from 'jotai/zustand'
 import create from 'zustand/vanilla'
+import { atomWithStore } from '../src/index'
 
 it('count state', async () => {
   const store = create(() => ({ count: 0 }))
