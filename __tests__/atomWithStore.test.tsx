@@ -1,6 +1,6 @@
 import React, { StrictMode } from 'react'
 import { act, fireEvent, render } from '@testing-library/react'
-import { useAtom } from 'jotai'
+import { useAtom } from 'jotai/react'
 import create from 'zustand/vanilla'
 import { atomWithStore } from '../src/index'
 

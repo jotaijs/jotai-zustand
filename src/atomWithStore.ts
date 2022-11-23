@@ -1,5 +1,5 @@
-import { atom } from 'jotai'
-import type { SetStateAction } from 'jotai'
+import { atom } from 'jotai/vanilla'
+import type { SetStateAction } from 'jotai/vanilla'
 import type { StoreApi } from 'zustand/vanilla'
 
 export function atomWithStore<T>(store: StoreApi<T>) {
