@@ -1,11 +1,11 @@
 import React, { StrictMode } from 'react'
 import { act, fireEvent, render } from '@testing-library/react'
 import { useAtom } from 'jotai/react'
-import create from 'zustand/vanilla'
+import { createStore } from 'zustand/vanilla'
 import { atomWithStore } from '../src/index'
 
 it('count state', async () => {
-  const store = create(() => ({ count: 0 }))
+  const store = createStore(() => ({ count: 0 }))
   const stateAtom = atomWithStore(store)
   store.setState((prev) => ({ count: prev.count + 1 }))
 

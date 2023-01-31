@@ -1,9 +1,9 @@
 import React from 'react'
 import { useAtom } from 'jotai/react'
-import { atomWithStore } from 'jotai/zustand'
-import create from 'zustand/vanilla'
+import { atomWithStore } from 'jotai-zustand'
+import { createStore } from 'zustand/vanilla'
 
-const store = create(() => ({ count: 0 }))
+const store = createStore(() => ({ count: 0 }))
 store.subscribe(() => {
   console.log('new count', store.getState().count)
 })
