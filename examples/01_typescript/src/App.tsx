@@ -1,5 +1,5 @@
 import React from 'react'
-import { useAtom } from 'jotai'
+import { useAtom } from 'jotai/react'
 import { atomWithStore } from 'jotai/zustand'
 import create from 'zustand/vanilla'
 
