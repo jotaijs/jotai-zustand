@@ -4,7 +4,10 @@ import type { StoreApi } from 'zustand/vanilla'
 
 export function atomWithStore<T>(store: StoreApi<T>) {
   const baseAtom = atom(store.getState())
-  baseAtom.debugPrivate = true
+  if (process.env.NODE_ENV !== 'production') {
+    baseAtom.debugPrivate = true
+  }
+
   baseAtom.onMount = (setValue) => {
     const callback = () => {
       setValue(store.getState())
