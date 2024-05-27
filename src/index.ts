@@ -1,1 +1,1 @@
-export { atomWithStore } from './atomWithStore'
+export { atomWithStore } from './atomWithStore.js';
