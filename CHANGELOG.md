@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- feat: atomWithActions & create #5
+
 ## [0.4.0] - 2024-05-27
 
 ### Changed
