@@ -1,9 +1,12 @@
 import { atom } from 'jotai/vanilla';
 
-export function atomWithActions<State, Actions>(
+export function atomWithActions<State extends object, Actions extends object>(
   initialState: State,
   createActions: (
-    set: (partial: Partial<State> | ((prev: State) => Partial<State>)) => void,
+    set: (
+      partial: Partial<State> | ((prev: State) => Partial<State>),
+      replace?: boolean,
+    ) => void,
     get: () => State,
   ) => Actions,
 ) {
@@ -15,7 +18,7 @@ export function atomWithActions<State, Actions>(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_get, { setSelf }: any) => {
       const actions = createActions(
-        (partial) => setSelf({ type: 'set', partial }),
+        (partial, replace) => setSelf({ type: 'set', partial, replace }),
         () => setSelf({ type: 'get' }),
       );
       return actions;
@@ -28,7 +31,7 @@ export function atomWithActions<State, Actions>(
         | {
             type: 'set';
             partial: Partial<State> | ((prev: State) => Partial<State>);
-            replace?: boolean;
+            replace: boolean | undefined;
           },
     ) => {
       const state = get(stateAtom);
@@ -41,9 +44,7 @@ export function atomWithActions<State, Actions>(
       if (!Object.is(nextState, state)) {
         set(
           stateAtom,
-          (replace ?? (typeof nextState !== 'object' || nextState === null))
-            ? (nextState as State)
-            : Object.assign({}, state, nextState),
+          replace ? (nextState as State) : Object.assign({}, state, nextState),
         );
       }
     },
