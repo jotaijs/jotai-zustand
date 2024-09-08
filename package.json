@@ -40,7 +40,8 @@
     "test:types": "tsc -p . --noEmit",
     "test:types:examples": "tsc -p examples --noEmit",
     "test:spec": "vitest run",
-    "examples:01_typescript": "DIR=01_typescript vite"
+    "examples:01_typescript": "DIR=01_typescript vite",
+    "examples:02_create": "DIR=02_create vite"
   },
   "keywords": [
     "jotai",
