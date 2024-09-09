@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2024-09-10
+
 ### Added
 
 - feat: useSelector #6
