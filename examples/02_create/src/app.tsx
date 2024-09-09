@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { create } from 'jotai-zustand';
 
 const useCountStore = create(
@@ -11,8 +10,8 @@ const useCountStore = create(
 );
 
 const Counter = () => {
-  const count = useCountStore(useCallback((state) => state.count, []));
-  const inc = useCountStore(useCallback((state) => state.inc, []));
+  const count = useCountStore((state) => state.count);
+  const inc = useCountStore((state) => state.inc);
 
   return (
     <>
