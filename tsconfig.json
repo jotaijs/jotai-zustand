@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "strict": true,
-    "target": "es2018",
+    "target": "es2020",
     "esModuleInterop": true,
     "module": "nodenext",
+    // "moduleResolution": "nodenext",
     "skipLibCheck": true,
     "allowJs": true,
     "verbatimModuleSyntax": true,
