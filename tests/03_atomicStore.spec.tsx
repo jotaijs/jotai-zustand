@@ -126,8 +126,8 @@ describe('AtomicStore', () => {
       jotai.set(store.x, 1);
       expect(jotai.get(store.sum)).toBe(2);
       expect(computeCount).toEqual({
-        a: 1,   // Recomputed because x changed
-        b: 0,   // Not recomputed because y didn't change
+        a: 1, // Recomputed because x changed
+        b: 0, // Not recomputed because y didn't change
         sum: 1, // Recomputed because 'a' changed
       });
     });
@@ -407,15 +407,15 @@ describe('AtomicStore', () => {
       );
 
       // Verify initial state
-      expect(getByText('Count: 0')).toBeInTheDocument();
-      expect(getByText('Double Count: 0')).toBeInTheDocument();
+      expect(getByText('Count: 0'));
+      expect(getByText('Double Count: 0'));
 
       // Trigger the action
       fireEvent.click(getByText('Increment'));
 
       // Verify updated state
-      expect(getByText('Count: 1')).toBeInTheDocument();
-      expect(getByText('Double Count: 2')).toBeInTheDocument();
+      expect(getByText('Count: 1'));
+      expect(getByText('Double Count: 2'));
     });
   });
 });

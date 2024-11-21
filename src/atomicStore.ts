@@ -26,7 +26,7 @@ import type { Atom, WritableAtom, PrimitiveAtom } from 'jotai';
  *    - Base state becomes a primitive atom: `PrimitiveAtom<Value>`
  *    - Derived state becomes a read-only atom: `Atom<Value>`
  *    - Actions become writable atoms: `WritableAtom<void, Args, void>`
- * 
+ *
  * @example Basic store definition
  * ```ts
  * const store = createAtomicStore({
@@ -35,17 +35,17 @@ import type { Atom, WritableAtom, PrimitiveAtom } from 'jotai';
  *   increment(n = 1) { return { count: this.count + n } }
  * })
  * ```
- * 
+ *
  * @example Usage with React hooks
  * ```tsx
  * function Counter() {
  *   // Read base or derived state with useAtomValue
  *   const count = useAtomValue(store.count)
  *   const double = useAtomValue(store.double)
- *   
+ *
  *   // Get action setter with useSetAtom
  *   const increment = useSetAtom(store.increment)
- *   
+ *
  *   return (
  *     <div>
  *       <p>Count: {count}</p>
@@ -56,22 +56,22 @@ import type { Atom, WritableAtom, PrimitiveAtom } from 'jotai';
  *   )
  * }
  * ```
- * 
+ *
  * @example Direct usage with Jotai store
  * ```ts
  * const jotai = createStore()
- * 
+ *
  * // Read values
  * const count = jotai.get(store.count)
  * const double = jotai.get(store.double)
- * 
+ *
  * // Update base state
  * jotai.set(store.count, 42)
- * 
+ *
  * // Call actions
  * jotai.set(store.increment)
  * ```
- * 
+ *
  * @template State - Type of the state definition object
  */
 export function createAtomicStore<State extends object>(
@@ -237,7 +237,7 @@ function createStateGetter<T>(
  *
  * @template T - The base type of the store.
  */
-type AtomicState<T> = {
+export type AtomicState<T> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => any
     ? (...args: Args) => ValidActionReturn<T>
     : T[K];
@@ -256,12 +256,12 @@ type AtomicStore<T> = {
     ? WritableAtom<void, Parameters<T[K]>, void>
     : T[K] extends { get: () => any }
       ? Atom<ReturnType<T[K]['get']>>
-      : PrimitiveAtom<T[K]>
-}
+      : PrimitiveAtom<T[K]>;
+};
 
 /**
  * Valid return types for store actions
  *
  * @template T - The type of the atomic state definition object.
  */
-type ValidActionReturn<T> = void | Partial<T>;
+export type ValidActionReturn<T> = void | Partial<T>;
