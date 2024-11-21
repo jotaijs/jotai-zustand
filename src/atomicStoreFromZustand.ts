@@ -1,5 +1,5 @@
 import { createAtomicStore } from './atomicStore.js';
-import type { AtomicState, ValidActionReturn } from './atomicStore.js';
+import type { AtomicState } from './atomicStore.js';
 
 /** Convert Zustand store definition to atomic store definition */
 export function atomicStoreFromZustand<T extends object>(

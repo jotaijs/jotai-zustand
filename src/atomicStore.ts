@@ -1,6 +1,59 @@
 import { atom } from 'jotai';
 import type { Atom, WritableAtom, PrimitiveAtom } from 'jotai';
 
+// Helper type to detect if two types are exactly equal
+type IfEquals<X, Y, A = X, B = never> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? A : B;
+
+// Helper type to get writable keys of an object
+type WritableKeys<T> = {
+  [P in keyof T]: IfEquals<
+    { [Q in P]: T[P] },
+    { -readonly [Q in P]: T[P] },
+    P,
+    never
+  >;
+}[keyof T];
+
+/**
+ * Get state keys (non-function properties)
+ */
+type StateKeys<T> = {
+  [K in keyof T]: T[K] extends Function ? never : K;
+}[keyof T];
+
+/**
+ * Valid state update type that enforces exact object literal checking
+ */
+type StateUpdate<T> = {
+  [K in StateKeys<T>]?: T[K];
+} & {}; // The intersection with empty object helps preserve literal type checking
+
+/**
+ * Valid return types for store actions
+ */
+type ValidActionReturn<T> = void | StateUpdate<T>;
+
+/**
+ * Store definition type
+ */
+export type AtomicState<T> = {
+  [K in keyof T]: T[K] extends (...args: infer Args) => any
+    ? (...args: Args) => ValidActionReturn<T>
+    : T[K];
+};
+
+/**
+ * Generated store type where each property becomes a Jotai atom
+ */
+type AtomicStore<T> = {
+  [K in keyof T]: T[K] extends (...args: any[]) => any
+    ? WritableAtom<void, Parameters<T[K]>, void>
+    : K extends WritableKeys<T>
+      ? PrimitiveAtom<T[K]>
+      : Atom<T[K]>;
+};
+
 /**
  * Creates an atomic store that combines Zustand-like state definition with Jotai atoms.
  *
@@ -230,38 +283,3 @@ function createStateGetter<T>(
   }
   return state;
 }
-
-/**
- * Store definition type that allows base state, derived state (getters),
- * and actions that return void or partial state updates.
- *
- * @template T - The base type of the store.
- */
-export type AtomicState<T> = {
-  [K in keyof T]: T[K] extends (...args: infer Args) => any
-    ? (...args: Args) => ValidActionReturn<T>
-    : T[K];
-};
-
-/**
- * Generated store type where each property becomes a Jotai atom:
- * - Actions -> WritableAtom<void, Args, void>
- * - Derived state -> Atom<Value>
- * - Base state -> PrimitiveAtom<Value>
- *
- * @template T - The base type of the store.
- */
-type AtomicStore<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => any
-    ? WritableAtom<void, Parameters<T[K]>, void>
-    : T[K] extends { get: () => any }
-      ? Atom<ReturnType<T[K]['get']>>
-      : PrimitiveAtom<T[K]>;
-};
-
-/**
- * Valid return types for store actions
- *
- * @template T - The type of the atomic state definition object.
- */
-export type ValidActionReturn<T> = void | Partial<T>;

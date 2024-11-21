@@ -3,7 +3,18 @@ import { expect, test, describe } from 'vitest';
 import { atom, createStore } from 'jotai';
 import { render, fireEvent } from '@testing-library/react';
 import { useAtomValue, useSetAtom, Provider } from 'jotai';
-import { createAtomicStore } from '../src/index.js';
+import { createAtomicStore } from '../src/atomicStore.js';
+import type { Atom, WritableAtom, PrimitiveAtom } from 'jotai';
+
+// Define the utility types
+type ReadOnlyAtom<Value> = Atom<Value> & { write?: never };
+
+type ReadWriteAtom<Value> = PrimitiveAtom<Value>;
+
+type WriteOnlyAtom<Args extends unknown[]> = Omit<
+  WritableAtom<unknown, Args, void>,
+  'read'
+>;
 
 describe('AtomicStore', () => {
   describe('Basic Functionality', () => {
@@ -416,6 +427,124 @@ describe('AtomicStore', () => {
       // Verify updated state
       expect(getByText('Count: 1'));
       expect(getByText('Double Count: 2'));
+    });
+  });
+
+  describe('Type Safety', () => {
+    test('store definition types', () => {
+      // Valid store definitions - these should compile
+      const validStore = createAtomicStore({
+        count: 0,
+        text: 'hello',
+        items: [] as string[],
+        get double() {
+          return this.count * 2;
+        },
+        increment(n = 1) {
+          return { count: this.count + n };
+        },
+        reset() {
+          return { count: 0, text: '' };
+        },
+      });
+
+      // Invalid action return - returning an invalid state key
+      createAtomicStore({
+        count: 0,
+        // @ts-expect-error - Should error because 'invalid' is not a valid state key
+        invalid() {
+          return { invalid: 123 };
+        },
+      });
+
+      // Invalid action return - returning non-partial state
+      createAtomicStore({
+        count: 0,
+        // DOESN'T WORK - @ts-expect-error - Should error because 'extra' is not a valid state key
+        invalid() {
+          return { extra: '', count: 0 };
+        },
+      });
+
+      // Invalid derived state - accessing invalid property
+      createAtomicStore({
+        count: 0,
+        get invalid(): number {
+          // @ts-expect-error - Should error because 'missing' does not exist on state
+          return this.missing;
+        },
+      });
+    });
+
+    test('returned atom types', () => {
+      const store = createAtomicStore({
+        count: 0,
+        text: '',
+        get double() {
+          return this.count * 2;
+        },
+        increment(n = 1) {
+          return { count: this.count + n };
+        },
+        setText(s: string) {
+          return { text: s };
+        },
+      });
+
+      // Type assertions for returned atoms
+      const countAtom: ReadWriteAtom<number> = store.count;
+      const textAtom: ReadWriteAtom<string> = store.text;
+      const doubleAtom: ReadOnlyAtom<number> = store.double;
+      const incrementAtom: WriteOnlyAtom<[number?]> = store.increment;
+      const setTextAtom: WritableAtom<void, [string], void> = store.setText;
+
+      // @ts-expect-error - `store.text` is a PrimitiveAtom<string>, not a ReadOnlyAtom<string>
+      const invalidTextAtom: ReadOnlyAtom<string> = store.text;
+
+      // @ts-expect-error - `store.increment` is a writable atom, not a ReadOnlyAtom<void>
+      const invalidIncrementAtom: ReadOnlyAtom<void> = store.increment;
+    });
+
+    test('action return type safety', () => {
+      // Valid action returns
+      createAtomicStore({
+        count: 0,
+        nested: { value: '' },
+        items: [] as string[],
+        validAction1() {
+          return { count: 1 };
+        },
+        validAction2() {
+          return { nested: { value: 'new' } };
+        },
+        validAction3() {
+          return { items: ['new'] };
+        },
+        validAction4() {
+          /* no return */
+        },
+      });
+
+      // Invalid action returns
+      createAtomicStore({
+        count: 0,
+        nested: { value: '' },
+        items: [] as string[],
+        // @ts-expect-error - Cannot partially update nested objects with invalid keys
+        invalid() {
+          return { nested: { invalid: true } };
+        },
+      });
+
+      createAtomicStore({
+        count: 0,
+        nested: { value: '' },
+        items: [] as string[],
+        // @ts-expect-error - Cannot return non-existent state keys
+        invalid() {
+          return { extra: 123 };
+        },
+      });
     });
   });
 });
