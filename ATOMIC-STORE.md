@@ -146,25 +146,26 @@ toAtoms(store);
 
 Must explore:
 
-- [ ] Best way to track dependencies and create atoms
-- [ ] Add tests for types
-- [ ] Naming :)
+- [x] Best way to track dependencies and create atoms
+- [x] Add tests for types
+- [x] Naming :)
 
 Also likely explore:
 
-- [ ] Generalization to other state systems
 - [ ] Zustand compatibility
   - [ ] Also return `useStore` hook
   - [ ] Consume store using selectors — ideate API (the above Zustand one looks good to me, but not clear how to deal with setting basic state)
   - [ ] Also offer a setState / getState API
-  - [ ] Create atomic store from a Zustand store (and allow easy addition of derived state)
+  - [x] Create atomic store from a Zustand store
 - [ ] Dealing with async (state, computeds, actions, selectors)
 - [ ] Allow property setters in addition to property getters
 
 Perhaps out of scope:
 
+- [ ] Allow extending the store
 - [ ] Dealing with nested stores/state (I think this would be very useful)
 
 Out of scope:
 
 - [ ] Also allow using atoms within the store
+- [ ] Generalization to other state systems
