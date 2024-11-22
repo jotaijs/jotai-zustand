@@ -147,6 +147,10 @@ toAtoms(store);
 Must explore:
 
 - [ ] Consume store using selectors — ideate API (the above Zustand one looks good to me, but not clear how to deal with setting basic state)
+- [ ] Useful stuff
+  - [ ] Diffing: Getters that need to access previous state
+  - [ ] Internals: Properties that don't result in exposed atoms
+  - [ ] Setters: As well as getters — may cause loops?
 
 Also likely explore:
 
@@ -154,8 +158,8 @@ Also likely explore:
   - [ ] Also return `useStore` hook
   - [ ] Also offer a setState / getState API
 - [ ] Dealing with async (state, derived state, actions, selectors)
-- [ ] Allow property setters in addition to property getters
 - [ ] Integration with developer tools
+- [ ] How to deal with optional properties
 
 Perhaps out of scope:
 
