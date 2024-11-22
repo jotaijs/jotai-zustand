@@ -18,6 +18,18 @@ type WriteOnlyAtom<Args extends unknown[]> = Omit<
 
 describe('AtomicStore', () => {
   describe('Basic Functionality', () => {
+    test('creating store does not trigger computations', () => {
+      const computeCount = { value: 0 };
+      const store = createAtomicStore({
+        base: 0,
+        get value() {
+          computeCount.value++;
+          return this.base * 2;
+        },
+      });
+      expect(computeCount.value).toBe(0); // Should be 0 because 'value' was not computed
+    });
+
     test('basic value caching', () => {
       const computeCount = { value: 0 };
       const store = createAtomicStore({
@@ -30,22 +42,22 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initial read and reset counter
-      jotai.get(store.value);
-      computeCount.value = 0;
-
-      // First read should use cached value from initial read
+      // Initial read
       expect(jotai.get(store.value)).toBe(0);
-      expect(computeCount.value).toBe(0); // Should be 0 because value was cached
+      expect(computeCount.value).toBe(1); // Computed once upon first access
+
+      // Subsequent read should use cached value
+      expect(jotai.get(store.value)).toBe(0);
+      expect(computeCount.value).toBe(1); // Still 1, no recomputation
 
       // Update base value should trigger recomputation
       jotai.set(store.base, 1);
       expect(jotai.get(store.value)).toBe(2);
-      expect(computeCount.value).toBe(1); // Should compute once after base changed
+      expect(computeCount.value).toBe(2); // Computed again after base change
 
       // Subsequent reads should use cached value
       expect(jotai.get(store.value)).toBe(2);
-      expect(computeCount.value).toBe(1); // Should still be 1 (using cache)
+      expect(computeCount.value).toBe(2); // Still 2, no recomputation
     });
 
     test('independent chains', () => {
@@ -65,17 +77,19 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initialize and reset counters
-      jotai.get(store.a);
-      jotai.get(store.b);
-      computeCount.a = 0;
-      computeCount.b = 0;
+      // No computations yet
+      expect(computeCount).toEqual({ a: 0, b: 0 });
 
-      // Update only A
-      jotai.set(store.valueA, 1);
-      expect(jotai.get(store.a)).toBe(2);
+      // Access 'a' and 'b' for the first time
+      expect(jotai.get(store.a)).toBe(0);
       expect(jotai.get(store.b)).toBe(0);
-      expect(computeCount).toEqual({ a: 1, b: 0 });
+      expect(computeCount).toEqual({ a: 1, b: 1 });
+
+      // Update only 'valueA'
+      jotai.set(store.valueA, 1);
+      expect(jotai.get(store.a)).toBe(2); // 'a' recomputed
+      expect(jotai.get(store.b)).toBe(0); // 'b' remains the same
+      expect(computeCount).toEqual({ a: 2, b: 1 });
     });
 
     test('dependency chain', () => {
@@ -94,15 +108,17 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initialize and reset counters
-      jotai.get(store.quad);
-      computeCount.double = 0;
-      computeCount.quad = 0;
+      // No computations yet
+      expect(computeCount).toEqual({ double: 0, quad: 0 });
 
-      // Update base
+      // Access 'quad' for the first time
+      expect(jotai.get(store.quad)).toBe(0);
+      expect(computeCount).toEqual({ double: 1, quad: 1 });
+
+      // Update 'base'
       jotai.set(store.base, 1);
       expect(jotai.get(store.quad)).toBe(4);
-      expect(computeCount).toEqual({ double: 1, quad: 1 });
+      expect(computeCount).toEqual({ double: 2, quad: 2 });
     });
 
     test('partial chain updates', () => {
@@ -126,20 +142,17 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initialize and reset computation counters
-      jotai.get(store.sum);
-      computeCount.a = 0;
-      computeCount.b = 0;
-      computeCount.sum = 0;
+      // Access 'sum' for the first time
+      expect(jotai.get(store.sum)).toBe(0);
+      expect(computeCount).toEqual({ a: 1, b: 1, sum: 1 });
 
-      // Update x only - this should only trigger recomputation of 'a' and 'sum'
-      // 'b' should not recompute since its dependency (y) hasn't changed
+      // Update 'x' only
       jotai.set(store.x, 1);
       expect(jotai.get(store.sum)).toBe(2);
       expect(computeCount).toEqual({
-        a: 1, // Recomputed because x changed
-        b: 0, // Not recomputed because y didn't change
-        sum: 1, // Recomputed because 'a' changed
+        a: 2, // Recomputed because 'x' changed
+        b: 1, // Not recomputed
+        sum: 2, // Recomputed because 'a' changed
       });
     });
 
@@ -163,25 +176,14 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initialize by reading each value individually
-      const initialA = jotai.get(store.a);
-      const initialB = jotai.get(store.b);
-      const initialSum = jotai.get(store.sum);
-      expect(initialSum).toBe(6); // (1*2) + (1*3) + 1
+      // Access 'sum' for the first time
+      expect(jotai.get(store.sum)).toBe(6); // (1*2) + (1*3) + 1
+      expect(computeCount).toEqual({ a: 1, b: 1, sum: 1 });
 
-      // Reset counters
-      computeCount.a = 0;
-      computeCount.b = 0;
-      computeCount.sum = 0;
-
-      // Read again to verify caching
-      expect(jotai.get(store.sum)).toBe(6);
-      expect(computeCount).toEqual({ a: 0, b: 0, sum: 0 });
-
-      // Update x
+      // Update 'x'
       jotai.set(store.x, 2);
       expect(jotai.get(store.sum)).toBe(12); // (2*2) + (2*3) + 2
-      expect(computeCount).toEqual({ a: 1, b: 1, sum: 1 });
+      expect(computeCount).toEqual({ a: 2, b: 2, sum: 2 });
     });
   });
 
@@ -210,48 +212,32 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initialize and reset
-      jotai.get(store.d);
-      computeCount.a = computeCount.b = computeCount.c = computeCount.d = 0;
+      // Access 'd' for the first time
+      expect(jotai.get(store.d)).toBe(6); // ((0 + 1) * 2 + (0 + 1)) * 2
+      expect(computeCount).toEqual({ a: 1, b: 1, c: 1, d: 1 });
 
-      // Update base
+      // Update 'base'
       jotai.set(store.base, 1);
       expect(jotai.get(store.d)).toBe(12); // ((1 + 1) * 2 + (1 + 1)) * 2
-      expect(computeCount).toEqual({ a: 1, b: 1, c: 1, d: 1 });
+      expect(computeCount).toEqual({ a: 2, b: 2, c: 2, d: 2 });
     });
 
-    test('deep dependency chain updates', () => {
-      const computeCount = { a: 0, b: 0, c: 0, d: 0 };
+    test('circular dependencies are detected', () => {
       const store = createAtomicStore({
-        base: 1,
-        get a() {
-          computeCount.a++;
-          return this.base + 1;
+        x: 0,
+        get y() {
+          return this.z + 1;
         },
-        get b() {
-          computeCount.b++;
-          return this.a * 2;
-        },
-        get c() {
-          computeCount.c++;
-          return this.b + this.a;
-        },
-        get d() {
-          computeCount.d++;
-          return this.c * 2;
+        get z() {
+          return this.y + 1;
         },
       });
 
       const jotai = createStore();
 
-      // Initialize and reset counters
-      expect(jotai.get(store.d)).toBe(12);
-      computeCount.a = computeCount.b = computeCount.c = computeCount.d = 0;
-
-      // Update base
-      jotai.set(store.base, 2);
-      expect(jotai.get(store.d)).toBe(18);
-      expect(computeCount).toEqual({ a: 1, b: 1, c: 1, d: 1 });
+      // Accessing 'y' or 'z' should throw an error due to circular dependency
+      expect(() => jotai.get(store.y)).toThrowError(/stack size exceeded/i);
+      expect(() => jotai.get(store.z)).toThrowError(/stack size exceeded/i);
     });
   });
 
@@ -280,14 +266,10 @@ describe('AtomicStore', () => {
       expect(initialA).toBe(0);
       expect(initialB).toBe(0);
 
-      // Reset counters
-      computeCount.a = 0;
-      computeCount.b = 0;
-
       // Update y while x is 0
       jotai.set(store.y, 1);
       expect(jotai.get(store.a)).toBe(0);
-      expect(computeCount).toEqual({ a: 0, b: 0 });
+      expect(computeCount).toEqual({ a: 1, b: 1 });
     });
   });
 
@@ -307,18 +289,20 @@ describe('AtomicStore', () => {
     });
 
     test('cyclic dependency detection', () => {
-      expect(() => {
-        const store = createAtomicStore({
-          get a() {
-            return this.b;
-          },
-          get b() {
-            return this.a;
-          },
-        });
-      }).toThrowError(
-        /Cyclic dependency detected|Maximum call stack size exceeded/i,
-      );
+      const store = createAtomicStore({
+        get a() {
+          return this.b;
+        },
+        get b() {
+          return this.a;
+        },
+      });
+
+      const jotai = createStore();
+
+      // Accessing 'a' or 'b' should throw an error due to circular dependency
+      expect(() => jotai.get(store.a)).toThrowError(/stack size exceeded/i);
+      expect(() => jotai.get(store.b)).toThrowError(/stack size exceeded/i);
     });
   });
 
@@ -371,14 +355,14 @@ describe('AtomicStore', () => {
 
       const jotai = createStore();
 
-      // Initialize and reset compute count
+      // Initialize
       jotai.get(store.sum);
-      computeCount.sum = 0;
+      expect(computeCount.sum).toBe(1);
 
       // Update both 'a' and 'b' atomically
       jotai.set(store.updateValues, 3, 4);
       expect(jotai.get(store.sum)).toBe(7);
-      expect(computeCount.sum).toBe(1); // Should only recompute once
+      expect(computeCount.sum).toBe(2); // Should only recompute once
     });
   });
 
@@ -460,7 +444,7 @@ describe('AtomicStore', () => {
       // Invalid action return - returning non-partial state
       createAtomicStore({
         count: 0,
-        // DOESN'T WORK - @ts-expect-error - Should error because 'extra' is not a valid state key
+        // FIXME: DOESN'T WORK - @ts-expect-error - Should error because 'extra' is not a valid state key
         invalid() {
           return { extra: '', count: 0 };
         },

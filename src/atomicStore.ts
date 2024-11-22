@@ -15,37 +15,27 @@ type WritableKeys<T> = {
   >;
 }[keyof T];
 
-/**
- * Get state keys (non-function properties)
- */
+/** Get state keys (non-function properties) */
 type StateKeys<T> = {
   [K in keyof T]: T[K] extends Function ? never : K;
 }[keyof T];
 
-/**
- * Valid state update type that enforces exact object literal checking
- */
+/** Valid state update type that enforces exact object literal checking */
 type StateUpdate<T> = {
   [K in StateKeys<T>]?: T[K];
 } & {}; // The intersection with empty object helps preserve literal type checking
 
-/**
- * Valid return types for store actions
- */
+/** Valid return types for store actions */
 type ValidActionReturn<T> = void | StateUpdate<T>;
 
-/**
- * Store definition type
- */
+/** Store definition type */
 export type AtomicState<T> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => any
     ? (...args: Args) => ValidActionReturn<T>
     : T[K];
 };
 
-/**
- * Generated store type where each property becomes a Jotai atom
- */
+/** Generated store type where each property becomes a Jotai atom */
 type AtomicStore<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any
     ? WritableAtom<void, Parameters<T[K]>, void>
@@ -135,14 +125,16 @@ export function createAtomicStore<State extends object>(
 
   // Create a single root atom for all base state values
   const baseValues = {} as Record<keyof State, any>;
-  for (const [key, value] of Object.entries(initial)) {
+  for (const key of Object.keys(initial)) {
     const k = key as keyof State;
     const desc = Object.getOwnPropertyDescriptor(initial, k);
     if (
-      typeof value !== 'function' && // Not an action
-      !desc?.get // Not derived state
-    )
-      baseValues[k] = value;
+      desc &&
+      !desc.get && // Not derived state
+      typeof desc.value !== 'function' // Not an action
+    ) {
+      baseValues[k] = desc.value;
+    }
   }
   const rootAtom = atom(baseValues);
 
@@ -177,18 +169,19 @@ export function createAtomicStore<State extends object>(
   }
 
   // Create action atoms
-  for (const [key, value] of Object.entries(initial)) {
+  for (const key of Object.keys(initial)) {
     const k = key as keyof State;
     const desc = Object.getOwnPropertyDescriptor(initial, k);
     if (
-      typeof value !== 'function' || // Not an action
-      desc?.get // Skip getters (derived state)
+      !desc ||
+      typeof desc.value !== 'function' || // Not an action
+      desc.get // Skip getters (derived state)
     )
       continue;
 
     store[k] = createActionAtom(
       k,
-      value,
+      desc.value,
       store,
       baseAtoms,
       initial,
