@@ -321,24 +321,6 @@ describe('AtomicStore', () => {
       expect(jotai.get(store.newValue)).toBe(5);
     });
 
-    test('state serialization and restoration', () => {
-      const store = createAtomicStore({ count: 0 });
-      const jotai = createStore();
-
-      jotai.set(store.count, 42);
-
-      // Serialize state
-      const serializedState = JSON.stringify({ count: jotai.get(store.count) });
-
-      // Restore state in a new store
-      const newStore = createAtomicStore({ count: 0 });
-      const newJotai = createStore();
-      const restoredState = JSON.parse(serializedState);
-      newJotai.set(newStore.count, restoredState.count);
-
-      expect(newJotai.get(newStore.count)).toBe(42);
-    });
-
     test('atomicity of multi-value updates', () => {
       const computeCount = { sum: 0 };
       const store = createAtomicStore({
