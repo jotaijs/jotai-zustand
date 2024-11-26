@@ -44,7 +44,7 @@ type AtomicStore<T> = {
       : Atom<T[K]>;
 };
 
-const ACTION = Symbol('ACTION') // Unique symbol to denote action atoms
+const ACTION = Symbol('ACTION'); // Unique symbol to denote action atoms
 
 /**
  * Creates an atomic store that combines Zustand-like state definition with Jotai atoms.
@@ -159,15 +159,22 @@ export function createAtomicStore<State extends object>(
     Object.getOwnPropertyDescriptors(definition),
   )) {
     if (!desc.get) continue;
-
     const k = key as keyof State;
-    store[k] = createDerivedAtom(
-      k,
-      desc.get!,
-      store,
-      baseAtoms,
-      definition,
-    ) as AtomicStore<State>[typeof k];
+    const derivedAtom = atom((get) => {
+      const state = Object.create(null) as State;
+      for (const propKey of Object.keys(definition)) {
+        const pk = propKey as keyof State;
+        Object.defineProperty(state, pk, {
+          get() {
+            if (baseAtoms.has(pk)) return get(baseAtoms.get(pk)!);
+            return get(store[pk] as Atom<any>);
+          },
+          enumerable: true,
+        });
+      }
+      return desc.get!.call(state);
+    });
+    store[k] = derivedAtom as AtomicStore<State>[typeof k];
   }
 
   // Create action atoms
@@ -180,104 +187,34 @@ export function createAtomicStore<State extends object>(
       desc.get // Skip getters (derived state)
     )
       continue;
-
-    store[k] = createActionAtom(
-      k,
-      desc.value,
-      store,
-      baseAtoms,
-      definition,
-    ) as AtomicStore<State>[typeof k];
+    type Args = State[typeof k] extends (...args: infer P) => any ? P : never;
+    const actionAtom = atom(ACTION, (get, set, ...args: Args) => {
+      const state = Object.create(null) as State;
+      for (const propKey of Object.keys(definition)) {
+        const pk = propKey as keyof State;
+        Object.defineProperty(state, pk, {
+          get() {
+            if (baseAtoms.has(pk)) return get(baseAtoms.get(pk)!);
+            return get(store[pk] as Atom<any>);
+          },
+          set(value: any) {
+            if (baseAtoms.has(pk)) {
+              set(baseAtoms.get(pk)!, value);
+            } else {
+              throw new Error(`Cannot set value for derived state or actions.`);
+            }
+          },
+          enumerable: true,
+        });
+      }
+      const result = desc.value.apply(state, args);
+      if (result)
+        for (const [key, value] of Object.entries(result))
+          if (baseAtoms.has(key as keyof State))
+            set(baseAtoms.get(key as keyof State)!, value);
+    }) as WritableAtom<void, Args, void>;
+    store[k] = actionAtom as AtomicStore<State>[typeof k];
   }
 
   return store;
-}
-
-/**
- * Creates a derived state atom that automatically updates when its dependencies change.
- *
- * @template T - The type of the atomic state definition object.
- * @param key - The key of the derived state property.
- * @param getFn - The getter function for the derived state.
- * @param store - The atomic store.
- * @param baseAtoms - Map of base atoms.
- * @param definition - The atomic state definition.
- * @returns An atom representing the derived state.
- */
-function createDerivedAtom<T>(
-  key: keyof T,
-  getFn: () => any,
-  store: AtomicStore<T>,
-  baseAtoms: Map<keyof T, PrimitiveAtom<any>>,
-  definition: AtomicDefinition<T>,
-): Atom<any> {
-  return atom((get) => {
-    const state = createStateGetter(get, store, baseAtoms, definition);
-    return getFn.call(state);
-  });
-}
-
-/**
- * Creates an action atom that can update multiple base state values atomically.
- *
- * @template T - The type of the atomic state definition object.
- * @param key - The key of the action property.
- * @param actionFn - The function representing the action.
- * @param store - The atomic store.
- * @param baseAtoms - Map of base atoms.
- * @param definition - The atomic state definition.
- * @returns A writable atom representing the action.
- */
-function createActionAtom<T>(
-  key: keyof T,
-  actionFn: Function,
-  store: AtomicStore<T>,
-  baseAtoms: Map<keyof T, PrimitiveAtom<any>>,
-  definition: AtomicDefinition<T>,
-): WritableAtom<void, any[], void> {
-  type Args = T[typeof key] extends (...args: infer P) => any ? P : never;
-
-  return atom(
-    ACTION,
-    (get, set, ...args: Args) => {
-      const state = createStateGetter(get, store, baseAtoms, definition);
-      const result = actionFn.apply(state, args);
-      if (result) {
-        for (const [k, v] of Object.entries(result)) {
-          if (baseAtoms.has(k as keyof T)) set(baseAtoms.get(k as keyof T)!, v);
-        }
-      }
-    },
-  ) as unknown as WritableAtom<void, Args, void>;
-}
-
-/**
- * Creates an object with getters that access the latest atom values.
- * Used to provide the `this` context in derived state and actions.
- *
- * @template T - The type of the atomic state definition object.
- * @param get - The 'get' function provided by Jotai atoms.
- * @param store - The atomic store.
- * @param baseAtoms - Map of base atoms.
- * @param definition - The atomic state definition.
- * @returns An object with getters for each property.
- */
-function createStateGetter<T>(
-  get: any,
-  store: AtomicStore<T>,
-  baseAtoms: Map<keyof T, PrimitiveAtom<any>>,
-  definition: AtomicDefinition<T>,
-) {
-  const state = Object.create(null);
-  for (const propKey of Object.keys(definition)) {
-    const pk = propKey as keyof T;
-    Object.defineProperty(state, pk, {
-      get() {
-        if (baseAtoms.has(pk)) return get(baseAtoms.get(pk)!);
-        return get(store[pk] as Atom<any>);
-      },
-      enumerable: true,
-    });
-  }
-  return state;
 }
