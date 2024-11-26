@@ -29,7 +29,7 @@ type StateUpdate<T> = {
 type ValidActionReturn<T> = void | StateUpdate<T>;
 
 /** Store definition type */
-export type AtomicState<T> = {
+export type AtomicDefinition<T> = {
   [K in keyof T]: T[K] extends (...args: infer Args) => any
     ? (...args: Args) => ValidActionReturn<T>
     : T[K];
@@ -118,16 +118,16 @@ type AtomicStore<T> = {
  * @template State - Type of the state definition object
  */
 export function createAtomicStore<State extends object>(
-  initial: AtomicState<State>,
+  definition: AtomicDefinition<State>,
 ): AtomicStore<State> {
   const store = {} as AtomicStore<State>;
   const baseAtoms = new Map<keyof State, PrimitiveAtom<any>>();
 
   // Create a single root atom for all base state values
   const baseValues = {} as Record<keyof State, any>;
-  for (const key of Object.keys(initial)) {
+  for (const key of Object.keys(definition)) {
     const k = key as keyof State;
-    const desc = Object.getOwnPropertyDescriptor(initial, k);
+    const desc = Object.getOwnPropertyDescriptor(definition, k);
     if (
       desc &&
       !desc.get && // Not derived state
@@ -154,7 +154,7 @@ export function createAtomicStore<State extends object>(
 
   // Create derived state atoms
   for (const [key, desc] of Object.entries(
-    Object.getOwnPropertyDescriptors(initial),
+    Object.getOwnPropertyDescriptors(definition),
   )) {
     if (!desc.get) continue;
 
@@ -164,14 +164,14 @@ export function createAtomicStore<State extends object>(
       desc.get!,
       store,
       baseAtoms,
-      initial,
+      definition,
     ) as AtomicStore<State>[typeof k];
   }
 
   // Create action atoms
-  for (const key of Object.keys(initial)) {
+  for (const key of Object.keys(definition)) {
     const k = key as keyof State;
-    const desc = Object.getOwnPropertyDescriptor(initial, k);
+    const desc = Object.getOwnPropertyDescriptor(definition, k);
     if (
       !desc ||
       typeof desc.value !== 'function' || // Not an action
@@ -184,7 +184,7 @@ export function createAtomicStore<State extends object>(
       desc.value,
       store,
       baseAtoms,
-      initial,
+      definition,
     ) as AtomicStore<State>[typeof k];
   }
 
@@ -199,7 +199,7 @@ export function createAtomicStore<State extends object>(
  * @param getFn - The getter function for the derived state.
  * @param store - The atomic store.
  * @param baseAtoms - Map of base atoms.
- * @param initial - The initial atomic state definition.
+ * @param definition - The atomic state definition.
  * @returns An atom representing the derived state.
  */
 function createDerivedAtom<T>(
@@ -207,10 +207,10 @@ function createDerivedAtom<T>(
   getFn: () => any,
   store: AtomicStore<T>,
   baseAtoms: Map<keyof T, PrimitiveAtom<any>>,
-  initial: AtomicState<T>,
+  definition: AtomicDefinition<T>,
 ): Atom<any> {
   return atom((get) => {
-    const state = createStateGetter(get, store, baseAtoms, initial);
+    const state = createStateGetter(get, store, baseAtoms, definition);
     return getFn.call(state);
   });
 }
@@ -223,7 +223,7 @@ function createDerivedAtom<T>(
  * @param actionFn - The function representing the action.
  * @param store - The atomic store.
  * @param baseAtoms - Map of base atoms.
- * @param initial - The initial atomic state definition.
+ * @param definition - The atomic state definition.
  * @returns A writable atom representing the action.
  */
 function createActionAtom<T>(
@@ -231,11 +231,10 @@ function createActionAtom<T>(
   actionFn: Function,
   store: AtomicStore<T>,
   baseAtoms: Map<keyof T, PrimitiveAtom<any>>,
-  initial: AtomicState<T>,
+  definition: AtomicDefinition<T>,
 ): WritableAtom<void, any[], void> {
   type Args = T[typeof key] extends (...args: infer P) => any ? P : never;
 
-  return atom(null, (get, set, ...args: Args) => {
     const state = createStateGetter(get, store, baseAtoms, initial);
     const result = actionFn.apply(state, args);
     if (result) {
@@ -254,17 +253,17 @@ function createActionAtom<T>(
  * @param get - The 'get' function provided by Jotai atoms.
  * @param store - The atomic store.
  * @param baseAtoms - Map of base atoms.
- * @param initial - The initial atomic state definition.
+ * @param definition - The atomic state definition.
  * @returns An object with getters for each property.
  */
 function createStateGetter<T>(
   get: any,
   store: AtomicStore<T>,
   baseAtoms: Map<keyof T, PrimitiveAtom<any>>,
-  initial: AtomicState<T>,
+  definition: AtomicDefinition<T>,
 ) {
   const state = Object.create(null);
-  for (const propKey of Object.keys(initial)) {
+  for (const propKey of Object.keys(definition)) {
     const pk = propKey as keyof T;
     Object.defineProperty(state, pk, {
       get() {
