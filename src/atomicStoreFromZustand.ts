@@ -1,5 +1,5 @@
 import { createAtomicStore } from './atomicStore.js';
-import type { AtomicState } from './atomicStore.js';
+import type { AtomicDefinition } from './atomicStore.js';
 
 /** Convert Zustand store definition to atomic store definition */
 export function atomicStoreFromZustand<T extends object>(
@@ -11,7 +11,7 @@ export function atomicStoreFromZustand<T extends object>(
   const set = (partial: Partial<T>) => Object.assign(state, partial);
 
   const zustandDefinition = definition(set, get);
-  const atomicDefinition = {} as AtomicState<T>;
+  const atomicDefinition = {} as AtomicDefinition<T>;
 
   for (const key in zustandDefinition) {
     const value = zustandDefinition[key];
