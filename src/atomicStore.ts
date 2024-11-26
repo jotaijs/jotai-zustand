@@ -44,6 +44,8 @@ type AtomicStore<T> = {
       : Atom<T[K]>;
 };
 
+const ACTION = Symbol('ACTION') // Unique symbol to denote action atoms
+
 /**
  * Creates an atomic store that combines Zustand-like state definition with Jotai atoms.
  *
@@ -235,14 +237,18 @@ function createActionAtom<T>(
 ): WritableAtom<void, any[], void> {
   type Args = T[typeof key] extends (...args: infer P) => any ? P : never;
 
-    const state = createStateGetter(get, store, baseAtoms, initial);
-    const result = actionFn.apply(state, args);
-    if (result) {
-      for (const [k, v] of Object.entries(result)) {
-        if (baseAtoms.has(k as keyof T)) set(baseAtoms.get(k as keyof T)!, v);
+  return atom(
+    ACTION,
+    (get, set, ...args: Args) => {
+      const state = createStateGetter(get, store, baseAtoms, definition);
+      const result = actionFn.apply(state, args);
+      if (result) {
+        for (const [k, v] of Object.entries(result)) {
+          if (baseAtoms.has(k as keyof T)) set(baseAtoms.get(k as keyof T)!, v);
+        }
       }
-    }
-  }) as unknown as WritableAtom<void, Args, void>;
+    },
+  ) as unknown as WritableAtom<void, Args, void>;
 }
 
 /**
