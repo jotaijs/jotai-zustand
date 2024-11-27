@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
       resolve: { alias: { 'jotai-zustand': resolve('src') } },
       test: {
         environment: 'happy-dom',
-        setupFiles: ['./tests/vitest-setup.js'],
+        setupFiles: ['./tests/vitest-setup.ts'],
       },
     };
   }
