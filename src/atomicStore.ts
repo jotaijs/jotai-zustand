@@ -125,96 +125,82 @@ export function createAtomicStore<State extends object>(
   const store = {} as AtomicStore<State>;
   const baseAtoms = new Map<keyof State, PrimitiveAtom<any>>();
 
-  // Create a single root atom for all base state values
-  const baseValues = {} as Record<keyof State, any>;
+  // Helper to check property types
+  const isPropType = {
+    action: (key: keyof State) => {
+      const desc = Object.getOwnPropertyDescriptor(definition, key);
+      return desc && typeof desc.value === 'function' && !desc.get;
+    },
+    derived: (key: keyof State) => {
+      const desc = Object.getOwnPropertyDescriptor(definition, key);
+      return desc?.get !== undefined;
+    },
+    base: (key: keyof State) => {
+      const desc = Object.getOwnPropertyDescriptor(definition, key);
+      return desc && !desc.get && typeof desc.value !== 'function';
+    },
+  };
+
+  // Create base atoms first
   for (const key of Object.keys(definition)) {
     const k = key as keyof State;
-    const desc = Object.getOwnPropertyDescriptor(definition, k);
-    if (
-      desc &&
-      !desc.get && // Not derived state
-      typeof desc.value !== 'function' // Not an action
-    ) {
-      baseValues[k] = desc.value;
-    }
-  }
-  const rootAtom = atom(baseValues);
-
-  // Create atoms for each base state property
-  for (const key of Object.keys(baseValues)) {
-    const k = key as keyof State;
-    const baseAtom = atom(
-      (get) => get(rootAtom)[k],
-      (get, set, update: State[typeof k]) => {
-        const current = get(rootAtom);
-        set(rootAtom, { ...current, [k]: update });
-      },
-    ) as PrimitiveAtom<State[typeof k]>;
-    baseAtoms.set(k, baseAtom);
-    store[k] = baseAtom as AtomicStore<State>[typeof k];
+    if (!isPropType.base(k)) continue;
+    baseAtoms.set(k, atom(definition[k]));
+    store[k] = baseAtoms.get(k) as AtomicStore<State>[typeof k];
   }
 
   // Create derived state atoms
-  for (const [key, desc] of Object.entries(
-    Object.getOwnPropertyDescriptors(definition),
-  )) {
-    if (!desc.get) continue;
+  for (const key of Object.keys(definition)) {
     const k = key as keyof State;
-    const derivedAtom = atom((get) => {
-      const state = Object.create(null) as State;
-      for (const propKey of Object.keys(definition)) {
-        const pk = propKey as keyof State;
-        Object.defineProperty(state, pk, {
-          get() {
-            if (baseAtoms.has(pk)) return get(baseAtoms.get(pk)!);
-            return get(store[pk] as Atom<any>);
-          },
-          enumerable: true,
-        });
-      }
-      return desc.get!.call(state);
-    });
-    store[k] = derivedAtom as AtomicStore<State>[typeof k];
+    if (!isPropType.derived(k)) continue;
+    const getter = Object.getOwnPropertyDescriptor(definition, k)!.get!;
+    store[k] = atom((get) =>
+      getter.call(wrap(get)),
+    ) as AtomicStore<State>[typeof k];
   }
 
   // Create action atoms
   for (const key of Object.keys(definition)) {
     const k = key as keyof State;
-    const desc = Object.getOwnPropertyDescriptor(definition, k);
-    if (
-      !desc ||
-      typeof desc.value !== 'function' || // Not an action
-      desc.get // Skip getters (derived state)
-    )
-      continue;
-    type Args = State[typeof k] extends (...args: infer P) => any ? P : never;
+    if (!isPropType.action(k)) continue;
+    const action = definition[k] as (...args: any[]) => any;
+    type Args = Parameters<typeof action>;
     const actionAtom = atom(ACTION, (get, set, ...args: Args) => {
-      const state = Object.create(null) as State;
-      for (const propKey of Object.keys(definition)) {
-        const pk = propKey as keyof State;
-        Object.defineProperty(state, pk, {
-          get() {
-            if (baseAtoms.has(pk)) return get(baseAtoms.get(pk)!);
-            return get(store[pk] as Atom<any>);
-          },
-          set(value: any) {
-            if (baseAtoms.has(pk)) {
-              set(baseAtoms.get(pk)!, value);
-            } else {
-              throw new Error(`Cannot set value for derived state or actions.`);
-            }
-          },
-          enumerable: true,
-        });
-      }
-      const result = desc.value.apply(state, args);
+      const state = wrap(get, set);
+      const result = action.apply(state, args);
       if (result)
         for (const [key, value] of Object.entries(result))
           if (baseAtoms.has(key as keyof State))
             set(baseAtoms.get(key as keyof State)!, value);
-    }) as WritableAtom<void, Args, void>;
+    }) as unknown as WritableAtom<void, Args, void>;
     store[k] = actionAtom as AtomicStore<State>[typeof k];
   }
 
   return store;
+
+  // Helper to wrap a prop in getters/setters
+  function wrap(
+    get: (atom: Atom<any>) => any,
+    set?: (atom: PrimitiveAtom<any>, value: any) => void,
+  ) {
+    const state = Object.create(null) as State;
+    for (const propKey of Object.keys(definition)) {
+      const pk = propKey as keyof State;
+      const descriptor: PropertyDescriptor = {
+        get() {
+          if (baseAtoms.has(pk)) return get(baseAtoms.get(pk)!);
+          return get(store[pk] as Atom<any>);
+        },
+        enumerable: true,
+      };
+      if (set) {
+        descriptor.set = (value: any) => {
+          if (baseAtoms.has(pk)) set(baseAtoms.get(pk)!, value);
+          else throw new Error(`Cannot set value for derived state or actions`);
+        };
+      }
+      Object.defineProperty(state, pk, descriptor);
+    }
+    return state;
+  }
 }
