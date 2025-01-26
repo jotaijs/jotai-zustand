@@ -1,5 +1,4 @@
 import { useEffect, useReducer } from 'react';
-import type { ReducerWithoutAction } from 'react';
 import type { Atom, ExtractAtomValue } from 'jotai/vanilla';
 import { useStore } from 'jotai/react';
 
@@ -30,10 +29,7 @@ export function useSelector<Value, Slice>(
   const store = useStore(options);
 
   const [[sliceFromReducer, storeFromReducer, atomFromReducer], rerender] =
-    useReducer<
-      ReducerWithoutAction<readonly [Slice, Store, typeof atom]>,
-      undefined
-    >(
+    useReducer<readonly [Slice, Store, typeof atom], undefined, []>(
       (prev) => {
         const nextSlice = selector(store.get(atom));
         if (
